@@ -3,6 +3,9 @@ package com.example.demo.controllers;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import com.example.demo.security.Authorization;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,51 +22,71 @@ import com.example.demo.model.persistence.repositories.ItemRepository;
 import com.example.demo.model.persistence.repositories.UserRepository;
 import com.example.demo.model.requests.ModifyCartRequest;
 
+import static com.example.demo.utils.Constants.*;
+
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {
-	
-	@Autowired
-	private UserRepository userRepository;
-	
-	@Autowired
-	private CartRepository cartRepository;
-	
-	@Autowired
-	private ItemRepository itemRepository;
-	
-	@PostMapping("/addToCart")
-	public ResponseEntity<Cart> addTocart(@RequestBody ModifyCartRequest request) {
-		User user = userRepository.findByUsername(request.getUsername());
-		if(user == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if(!item.isPresent()) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		Cart cart = user.getCart();
-		IntStream.range(0, request.getQuantity())
-			.forEach(i -> cart.addItem(item.get()));
-		cartRepository.save(cart);
-		return ResponseEntity.ok(cart);
-	}
-	
-	@PostMapping("/removeFromCart")
-	public ResponseEntity<Cart> removeFromcart(@RequestBody ModifyCartRequest request) {
-		User user = userRepository.findByUsername(request.getUsername());
-		if(user == null) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		Optional<Item> item = itemRepository.findById(request.getItemId());
-		if(!item.isPresent()) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-		Cart cart = user.getCart();
-		IntStream.range(0, request.getQuantity())
-			.forEach(i -> cart.removeItem(item.get()));
-		cartRepository.save(cart);
-		return ResponseEntity.ok(cart);
-	}
-		
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private CartRepository cartRepository;
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    private final Logger logger = LogManager.getLogger(CartController.class);
+
+    @PostMapping("/addToCart")
+    public ResponseEntity<Cart> addToCart(@RequestBody ModifyCartRequest request) {
+        logger.info("{} : {}", ADD_TO_CART, request.toString());
+        if (!Authorization.isRightAccount(request.getUsername())) {
+            logger.error("{} : {}", ADD_TO_CART, FORBIDDEN);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        User user = userRepository.findByUsername(request.getUsername());
+        if (user == null) {
+            logger.error("{} : {}", ADD_TO_CART, NOTFOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        Optional<Item> item = itemRepository.findById(request.getItemId());
+        if (!item.isPresent()) {
+            logger.error("{} : {}", ADD_TO_CART, NOTFOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        Cart cart = user.getCart();
+        IntStream.range(0, request.getQuantity())
+                .forEach(i -> cart.addItem(item.get()));
+        cartRepository.save(cart);
+        logger.info("{} : {}", ADD_TO_CART, SUCCESS);
+        return ResponseEntity.ok(cart);
+    }
+
+    @PostMapping("/removeFromCart")
+    public ResponseEntity<Cart> removeFromCart(@RequestBody ModifyCartRequest request) {
+        logger.info("{} : {}", REMOVE_FROM_CART, request.toString());
+        if (!Authorization.isRightAccount(request.getUsername())) {
+            logger.error("{} : {}", REMOVE_FROM_CART, FORBIDDEN);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        User user = userRepository.findByUsername(request.getUsername());
+        if (user == null) {
+            logger.error("{} : {}", REMOVE_FROM_CART, NOTFOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        Optional<Item> item = itemRepository.findById(request.getItemId());
+        if (!item.isPresent()) {
+            logger.error("{} : {}", REMOVE_FROM_CART, NOTFOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        Cart cart = user.getCart();
+        IntStream.range(0, request.getQuantity())
+                .forEach(i -> cart.removeItem(item.get()));
+        cartRepository.save(cart);
+        logger.info("{} : {}", REMOVE_FROM_CART, SUCCESS);
+        return ResponseEntity.ok(cart);
+    }
+
 }
